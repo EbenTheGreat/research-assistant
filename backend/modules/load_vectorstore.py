@@ -92,7 +92,7 @@ def load_vectorstore(uploaded_files):
         metadata = []
         for chunk in chunks:
             md = chunk.metadata.copy()
-            md["page_content"] = chunk.page_content  # 🔑 store the text in metadata
+            md["page_content"] = chunk.page_content 
             metadata.append(md)
 
         ids = [f"{Path(file_path).stem}-{i}" for i in range(len(chunks))]
@@ -106,7 +106,7 @@ def load_vectorstore(uploaded_files):
         with tqdm(total=len(embeddings), desc="Upserting to Pinecone") as progress:
             vectors = list(zip(ids, embeddings, metadata))
 
-            # Send in smaller chunks 
+            # Send in smaller chunks
             for batch in chunked_iterable(vectors, 100):
                 index.upsert(vectors=batch)
 
