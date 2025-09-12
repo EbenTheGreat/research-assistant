@@ -18,33 +18,48 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def get_pinecone_index():
-    """Safely return the Pinecone index, creating it if necessary."""
+    """Return a Pinecone index, creating one if needed."""
     pc = Pinecone(api_key=PINECONE_API_KEY)
     spec = ServerlessSpec(cloud="aws", region=PINECONE_ENV)
 
+    # get all existing indexes
     existing_indexes = {i["name"]: i for i in pc.list_indexes()}
+
+    # check for one that starts with your base name
     matching_index = [name for name in existing_indexes if name.startswith(PINECONE_INDEX_BASE)]
 
     if matching_index:
-        index_name = matching_index[0]  # use the first match (with suffix)
+        index_name = matching_index[0]
         print(f" Using existing Pinecone index: {index_name}")
     else:
-        index_name = PINECONE_INDEX_BASE
-        print(f" Creating new Pinecone index: {index_name}")
+        print(f" Creating new Pinecone index: {PINECONE_INDEX_BASE}")
         pc.create_index(
-            name=index_name,
+            name=PINECONE_INDEX_BASE,
             dimension=768,
             metric="cosine",
             spec=spec,
         )
-        # Wait until it's ready
-        while not pc.describe_index(index_name).status["ready"]:
+
+        while not pc.describe_index(PINECONE_INDEX_BASE).status["ready"]:
             time.sleep(1)
+
+        index_name = [i["name"] for i in pc.list_indexes() if i["name"].startswith(PINECONE_INDEX_BASE)][0]
+        print(f"Created Pinecone index: {index_name}")
 
     return pc.Index(index_name)
 
 
 index = get_pinecone_index()
+
+from itertools import islice
+
+def chunked_iterable(iterable, size):
+    it = iter(iterable)
+    while True:
+        chunk = list(islice(it, size))
+        if not chunk:
+            break
+        yield chunk
 
 
 def load_vectorstore(uploaded_files):
@@ -89,7 +104,12 @@ def load_vectorstore(uploaded_files):
         # 4. Upsert
         print("Upserting embeddings...")
         with tqdm(total=len(embeddings), desc="Upserting to Pinecone") as progress:
-            index.upsert(vectors=zip(ids, embeddings, metadata))
+            vectors = list(zip(ids, embeddings, metadata))
+
+            # Send in smaller chunks 
+            for batch in chunked_iterable(vectors, 100):
+                index.upsert(vectors=batch)
+
             progress.update(len(embeddings))
 
         print(f" Upload complete for {file_path}")
