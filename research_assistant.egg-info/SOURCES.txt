@@ -1,0 +1,11 @@
+pyproject.toml
+backend/__init__.py
+backend/logger.py
+backend/src.py
+frontend/__init__.py
+frontend/app.py
+frontend/config.py
+research_assistant.egg-info/PKG-INFO
+research_assistant.egg-info/SOURCES.txt
+research_assistant.egg-info/dependency_links.txt
+research_assistant.egg-info/top_level.txt

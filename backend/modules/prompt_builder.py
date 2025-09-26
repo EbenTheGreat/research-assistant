@@ -19,11 +19,10 @@ Output Format:
 Now, using the following context, answer the user’s query:
 
 
-Query: {{question}}
+Query: {{input}}
 """
 
     return PromptTemplate(
-        input_variables=[],
+        input_variables=["input", "context"],
         template=template
     )
-

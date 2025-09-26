@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "research-assistant"
+version = "0.1.0"
+description = "RAG app with FastAPI + Streamlit"
+dependencies = []
+
+
+[tool.setuptools]
+packages = ["backend", "frontend", "ocr_cache", "uploaded_documents"]
