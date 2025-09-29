@@ -18,10 +18,9 @@ app = FastAPI(title="AI-Powered RAG Guitar Assistant",
                   "url": "https://github.com/EbenTheGreat/BookApp"
               })
 
-@app.get('/')
+@app.api_route("/", methods=["GET", "HEAD"])
 async def read_root():
     return {"message": "welcome"}
-
 
 # CORS setup
 app.add_middleware(
