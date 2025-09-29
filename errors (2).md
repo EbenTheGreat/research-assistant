@@ -132,6 +132,138 @@ Environment variables should be the **single source of truth**. Avoid hardcoding
 
 ---
 
+## 7. `ModuleNotFoundError: No module named 'frontend'`
+
+**Error:**
+```text
+ModuleNotFoundError: No module named 'frontend'
+```
+
+**Cause:**  
+Python couldn’t recognize `frontend` as a package when deployed on Render, even though it worked locally. This happened because `__init__.py` files were missing and packaging was inconsistent.
+
+**Fix:**  
+- Added empty `__init__.py` files inside `backend`, `frontend`, `ocr_cache`, `uploaded_documents`.  
+- Created a `pyproject.toml` with `setuptools` configuration to ensure proper packaging.
+
+```toml
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "research-assistant"
+version = "0.1.0"
+description = "RAG app with FastAPI + Streamlit"
+dependencies = []
+
+[tool.setuptools]
+packages = ["backend", "frontend", "ocr_cache", "uploaded_documents"]
+```
+
+**Lesson Learned:**  
+Deployment environments are stricter than local dev. Always add `__init__.py` and a proper packaging file (`pyproject.toml`).
+
+---
+
+## 8. `requests.exceptions.HTTPError` from Streamlit
+
+**Error:**
+```text
+requests.exceptions.HTTPError: This app has encountered an error...
+```
+
+**Cause:**  
+The frontend’s `ask_questions_stream` was calling the backend, but either:
+- Wrong `API_URL`, or
+- The backend endpoint `/ask/stream` returned an error (status 500).
+
+**Fix:**  
+- Verified `API_URL` in `frontend/config.py`:
+
+```python
+# API_URL = "http://127.0.0.1:8000"
+API_URL = "https://research-assistant-oe9n.onrender.com/"
+```
+
+- Tested backend with Restfox/Postman to confirm `/ask/stream` works.  
+- Ensured `requests.post(..., data={"query": question}, stream=True)` matches the backend’s `Form` parameter.
+
+**Lesson Learned:**  
+- Always test backend endpoints directly with Postman/Restfox before blaming the frontend.  
+- `HTTPError` often means status `500` from backend, not a frontend bug.
+
+---
+
+## 9. Trailing Slash Bug in API_URL
+
+**Error:**  
+Frontend crashed with `requests.exceptions.HTTPError`, even though the backend was live.
+
+**Cause:**  
+In `frontend/config.py`, `API_URL` had a trailing slash:
+
+```python
+API_URL = "https://research-assistant-oe9n.onrender.com/"
+```
+
+So when concatenating:
+
+```python
+f"{API_URL}/ask/stream"
+```
+
+It became:
+
+```
+https://research-assistant-oe9n.onrender.com//ask/stream
+```
+
+(double `//`), which is treated as a different route.
+
+**Fix:**  
+Remove the trailing slash:
+
+```python
+API_URL = "https://research-assistant-oe9n.onrender.com"
+```
+
+Or normalize:
+
+```python
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").rstrip("/")
+```
+
+**Lesson Learned:**  
+Tiny string issues (`/` vs no `/`) can break APIs. Normalize URLs before concatenation.
+
+---
+
+## 10. ✅ Restfox/Postman Debugging Workflow
+
+To debug `/ask/stream`, we used Restfox:
+
+- **Method:** `POST`  
+- **URL:**  
+  ```
+  https://research-assistant-oe9n.onrender.com/ask/stream
+  ```
+- **Body:** (set to `x-www-form-urlencoded`)  
+  ```
+  query=nux mg 30
+  ```
+
+If the backend is working correctly, you should see a **streamed response** (chunks of text).  
+If you get a `500`, the issue is in the backend’s `/ask/stream` logic, not the frontend.
+
+**Lesson Learned:**  
+When debugging API errors:
+1. Test with Restfox/Postman.  
+2. Check backend logs for stack traces.  
+3. Only after confirming the backend works, connect the frontend.  
+
+---
+
 # 🎉 Final Outcome
 
 After fixing all these errors:
@@ -140,7 +272,6 @@ After fixing all these errors:
 - ✅ OCR ran with Google Vision  
 - ✅ Vector embeddings stored in Pinecone  
 - ✅ Queries returned correct results from the knowledge base  
+- ✅ Streamlit frontend successfully communicated with FastAPI backend  
 
 The system now works end-to-end 🎊
-
----
